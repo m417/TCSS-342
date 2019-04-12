@@ -1,0 +1,49 @@
+/*
+ * TCSS 342 – Winter 2019 - Assignment 1
+ */
+package tests;
+
+import static org.junit.Assert.assertTrue;
+
+import java.util.InputMismatchException;
+import org.junit.Test;
+import program.StackUtilities;
+
+/**
+ * JUnit test class of StackUtilities.
+ * 
+ * @author Matthew Chan
+ * @version January 15, 2019
+ *
+ */
+public class StackUtilitiesTest {
+    
+    /**
+     * Test method for decimaltoBinary.
+     */
+    @Test
+    public void testDecimaltoBinary() {
+        assertTrue(StackUtilities.decimalToBinary(13).equals("1101"));
+        assertTrue(StackUtilities.decimalToBinary(123456789).
+                   equals("111010110111100110100010101"));
+    }
+
+    /**
+     * Test method for decimaltoBinary.
+     * Testing for negative input.
+     */
+    @Test(expected = InputMismatchException.class)
+    public void testDecimaltoBinaryEx1() {
+        StackUtilities.decimalToBinary(-1);
+    }
+    
+    /**
+     * Test method for decimaltoBinary.
+     * Testing for zero input.
+     */
+    @Test(expected = InputMismatchException.class)
+    public void testDecimaltoBinaryEx2() {
+        StackUtilities.decimalToBinary(0);
+    }
+    
+}

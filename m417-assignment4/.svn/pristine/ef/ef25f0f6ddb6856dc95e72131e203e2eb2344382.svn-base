@@ -1,0 +1,413 @@
+/*
+ * TCSS 342 – Winter 2019 - Assignment 4
+ */
+package applications;
+
+import java.awt.Dimension;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Scanner;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+
+/**
+ * The GUI class for WordCount.
+ * 
+ * @author Matthew Chan
+ * @version February 23, 2019
+ *
+ */
+public class WordCountGUI extends JPanel {
+
+    /**
+     * A generated serial version UID for object Serialization.
+     * http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
+     */
+    private static final long serialVersionUID = -69268790438973474L;
+
+    /** The number of milliseconds in a nanosecond. */
+    private static final long MILLIS_PER_NANO = 1000000L;
+    
+    /** The line separator. */
+    private static final String SEPARATOR = "================================================";
+    
+    /** The text of choosing a file. */
+    private static final String CHOOSE = "Choose a file...";
+    
+    /** The text of exiting the program. */
+    private static final String EXIT = "Exit";
+    
+    /** The number of times we execute the algorithm. */
+    private static final int RUN_TIME = 10;
+    
+    /** The dimension of the choose file JButton. */
+    private static final Dimension CHOOSE_BUTTON_SIZE = new Dimension(200, 50);
+    
+    /** The dimension of the exit JButton. */
+    private static final Dimension EXIT_BUTTON_SIZE = new Dimension(100, 50);
+    
+    /** The dimension of the JTextField. */
+    private static final Dimension TEXTFIELD_SIZE = new Dimension(100, 50);
+    
+    /** A variable holding the top 'N' value. */
+    private int myTopN;
+    
+    /** A PriorityQueue storing all 10 runs elapsed times for HashMap. */
+    private final PriorityQueue<Long> myHashMapRuntime;
+    
+    /** A PriorityQueue storing all 10 runs elapsed times for TreeMap. */
+    private final PriorityQueue<Long> myTreeMapRuntime;
+
+    /** A JFileChooser needed to select the text file. */
+    private final JFileChooser myDirectory;
+
+    /** A JTextField needed to enter the top 'N' value. */
+    private final JTextField myTextField;
+    
+    /** A StringBuilder storing all output text to the console. */
+    private final StringBuilder myOutput;
+
+    /**
+     * Constructs the GUI.
+     */
+    public WordCountGUI() {
+        super();
+        myTopN = 0;
+        myHashMapRuntime = new PriorityQueue<>();
+        myTreeMapRuntime = new PriorityQueue<>();
+        myDirectory = new JFileChooser(".");
+        myTextField = new JTextField();
+        myOutput = new StringBuilder();
+        setUpComponents();
+        createAndShowGUI();
+    }
+
+    /**
+     * Sets up the components.
+     */
+    private void setUpComponents() {
+        setOpaque(true);
+        setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        
+        final JButton choose = new JButton(CHOOSE);
+        final JLabel label = new JLabel("Enter top 'N' value: ");
+        final JButton exit = new JButton(EXIT);
+
+        choose.setPreferredSize(CHOOSE_BUTTON_SIZE);
+        choose.addActionListener(theEvent -> chooseFile());
+        exit.setPreferredSize(EXIT_BUTTON_SIZE);
+        exit.addActionListener(theEvent -> System.exit(0));
+
+        myTextField.setPreferredSize(TEXTFIELD_SIZE);
+        myTextField.setHorizontalAlignment(JTextField.CENTER);
+
+        add(label);
+        add(myTextField);
+        add(choose);
+        add(exit);
+    }
+    
+    /**
+     * Creates and shows the GUI.
+     */
+    private void createAndShowGUI() {
+        final JFrame frame = new JFrame("Welcome to WordCount!");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        frame.setContentPane(this);
+        frame.setJMenuBar(createMenuBar());
+
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setResizable(false);
+        frame.setVisible(true);
+    }
+
+    /**
+     * Builds a JMenuBar for this GUI.
+     * 
+     * @return the JMenuBar
+     */
+    private JMenuBar createMenuBar() {
+        final JMenuBar bar = new JMenuBar();
+        bar.add(createFileMenu());
+        return bar;
+    }
+
+    /**
+     * Creates the File JMenu.
+     * 
+     * @return the File JMenu
+     */
+    private JMenu createFileMenu() {
+        final JMenu file = new JMenu("File");
+
+        final JMenuItem chooseFile = new JMenuItem(CHOOSE);
+        final JMenuItem exit = new JMenuItem(EXIT);
+        file.add(chooseFile).addActionListener(theEvent -> chooseFile());
+        file.addSeparator();
+        file.add(exit).addActionListener(theEvent -> System.exit(0));
+
+        return file;
+    }
+
+    /**
+     * ActionLister for choosing the file.
+     */
+    private void chooseFile() {
+        if (isPositiveInt(myTextField.getText())) {
+            myTopN = Integer.parseInt(myTextField.getText());
+            final int option = this.myDirectory.showOpenDialog(this);
+            if (option == JFileChooser.APPROVE_OPTION) {
+                final File file = myDirectory.getSelectedFile();
+                parseFile(file);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Please enter a valid "
+                            + "top 'N' value before choosing a file.", "Error!", 
+                            JOptionPane.ERROR_MESSAGE);
+            myTextField.requestFocus();
+            myTextField.selectAll();
+        }
+    }
+
+    /**
+     * Parses a text file and build a List of words with it.
+     * 
+     * @param theFile the input text file
+     */
+    private void parseFile(final File theFile) {
+        final List<String> wordList = new ArrayList<>();
+        try {
+            final byte[] bytes = Files.readAllBytes(Paths.get(theFile.getName()));
+            final String lines = new String(bytes);
+            final Scanner getWord = new Scanner(lines);
+            while (getWord.hasNext()) {
+                wordList.add(getWord.next().replaceAll("[^a-zA-Z0-9]", "").toLowerCase());
+            }
+            getWord.close();
+        } catch (final IOException e) {
+            System.out.println("Unexpected IOException..."); // Shouldn't happen
+        }
+        
+        startProcess(theFile.getName(), wordList); // Execute the algorithm
+    }
+    
+    /**
+     * Starts the main process of this program.
+     *  
+     * @param theFilename the input filename
+     * @param theWordList the list of all words
+     */
+    private void startProcess(final String theFilename, final List<String> theWordList) {
+        myOutput.setLength(0); // Make sure the StringBuilder is empty
+        appendString(SEPARATOR);
+        appendString("Filename: "  + theFilename);
+        findTopN(theWordList); // Find the top 'N' words
+        countElapsed(theWordList, theFilename); // Count the elapsed time
+        System.out.println(myOutput.toString()); // Display all the output
+    }
+
+    /**
+     * Finds the top 'N' most frequent words and their counts.
+     * 
+     * @param theList the list of words
+     */
+    private void findTopN(final List<String> theList) {
+        final Map<String, Integer> map = new HashMap<>();
+        for (final String str : theList) {
+            if (str.length() > 0) { // Avoid empty string
+                final Integer num = map.get(str);
+                if (num == null) {
+                    map.put(str, 1);
+                } else {
+                    map.put(str, num + 1);
+                }  
+            }
+        }
+        
+        appendString("Total number of words in the file: " + theList.size());
+        appendString(SEPARATOR);
+        appendString("Top " + myTopN + " most frequent words:");
+        int count = 1;
+        for (final Map.Entry<String, Integer> mapEntry 
+                        : sortMapByValues(map, myTopN).entrySet()) {
+            appendString(count + ". " + frequencyInfo(mapEntry.getKey(), mapEntry.getValue()));
+            count++;
+        }
+    }
+    
+    /**
+     * Runs the algorithm 10 times and capture the ‘best’ time.
+     * 
+     * @param theList the list of words
+     * @param theFilename the input filename
+     */
+    private void countElapsed(final List<String> theList, final String theFilename) {
+        for (int i = 0; i < RUN_TIME; i++) {
+            measureHashMap(theList);
+            measureTreeMap(theList);
+        }
+        
+        appendString(SEPARATOR);
+        showBestTime(theFilename, myHashMapRuntime, "HashMap");
+        appendString("");
+        showBestTime(theFilename, myTreeMapRuntime, "TreeMap");
+        appendString("");
+        myHashMapRuntime.clear();
+        myTreeMapRuntime.clear();
+    }
+    
+    /**
+     * Measure the performance using HashMap implementation.
+     * 
+     * @param theList the list of strings
+     */
+    private void measureHashMap(final List<String> theList) {
+        final Map<String, Integer> hashmap = new HashMap<>();
+        
+        final long startTime = System.nanoTime();
+        for (final String str : theList) {
+            if (str.length() > 0) { // Avoid empty string
+                final Integer num = hashmap.get(str);
+                if (num == null) {
+                    hashmap.put(str, 1);
+                } else {
+                    hashmap.put(str, num + 1);
+                }
+            }
+        }
+
+        for (final Map.Entry<String, Integer> mapEntry 
+                        : sortMapByValues(hashmap, myTopN).entrySet()) {
+            frequencyInfo(mapEntry.getKey(), mapEntry.getValue());
+        }
+        final long endTime = System.nanoTime();
+        final long elapsed = endTime - startTime;
+        
+        myHashMapRuntime.add(elapsed);
+    }
+    
+    /**
+     * Measure the performance using TreeMap implementation.
+     * 
+     * @param theList the list of strings
+     */
+    private void measureTreeMap(final List<String> theList) {
+        final Map<String, Integer> treemap = new TreeMap<>();
+        
+        final long startTime = System.nanoTime();
+        for (final String str : theList) {
+            if (str.length() > 0) { // Avoid empty string
+                final Integer num = treemap.get(str);
+                if (num == null) {
+                    treemap.put(str, 1);
+                } else {
+                    treemap.put(str, num + 1);
+                }
+            }
+        }
+
+        for (final Map.Entry<String, Integer> mapEntry 
+                        : sortMapByValues(treemap, myTopN).entrySet()) {
+            frequencyInfo(mapEntry.getKey(), mapEntry.getValue());
+        }
+        final long endTime = System.nanoTime();
+        final long elapsed = endTime - startTime;
+        
+        myTreeMapRuntime.add(elapsed);
+    }
+    
+    /**
+     * Sorts a Map according to its values.
+     * 
+     * @param theMap the map to be sorted
+     * @param theLimit the number of elements to be collected
+     * @return a sorted map in reverse order
+     */
+    private Map<String, Integer> sortMapByValues(final Map<String, Integer> theMap, 
+                                                 final int theLimit) {
+        return theMap.entrySet().
+                        stream().
+                        sorted(Map.Entry.comparingByValue(Collections.reverseOrder())).
+                        limit(theLimit).
+                        collect(Collectors.toMap(Map.Entry::getKey, 
+                                                 Map.Entry::getValue, (x, y) -> x, 
+                                                 LinkedHashMap::new));
+    }
+    
+    /**
+     * Returns a string of information about frequency counts.
+     * 
+     * @param theKey the key of the map
+     * @param theValue the value of the map
+     * @return a string of information about frequency counts
+     */
+    private String frequencyInfo(final String theKey, final Integer theValue) {
+        return "\"" + theKey + "\", " + "frequency counts" + ": " + theValue + " times";
+    }
+    
+    /**
+     * Appends information about best time for 10 runs into the StringBuilder.
+     * 
+     * @param theFilename the key of the map
+     * @param theQueue the PriorityQueue for data extracting
+     * @param theMapType the type of map being used
+     */
+    private void showBestTime(final String theFilename, 
+                             final PriorityQueue<Long> theQueue, final String theMapType) {
+        appendString("Using " + theFilename + " and using " + theMapType);
+        appendString("Best time for " + RUN_TIME 
+                     + " runs: " + theQueue.peek() / MILLIS_PER_NANO + "ms");
+    }
+    
+    /**
+     * Checks if the input string is a positive integer or not.
+     * 
+     * @param theString the string to be checked
+     * @return true if the input string is a positive integer, false otherwise.
+     */
+    private boolean isPositiveInt(final String theString) {
+        boolean result = true;
+        try {
+            final int num = Integer.parseInt(theString);
+            if (num <= 0) {
+                result = false;
+            }
+        } catch (final NumberFormatException nfe) {
+            result = false;
+        }
+        return result;
+    }
+    
+    /**
+     * Appends the string to the StringBuilder with line separator after it.
+     * 
+     * @param theString the string to be appended
+     */
+    private void appendString(final String theString) {
+        myOutput.append(theString);
+        myOutput.append(System.getProperty("line.separator"));
+    }
+    
+}

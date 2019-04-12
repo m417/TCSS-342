@@ -1,0 +1,76 @@
+/*
+ * TCSS 342 – Winter 2019 - Assignment 1
+ */
+package program;
+
+import java.util.InputMismatchException;
+import java.util.Scanner;
+import structures.ArrayStack;
+
+/**
+ * Converts a decimal to binary.
+ * 
+ * @author Matthew Chan
+ * @version January 15, 2019
+ */
+public final class StackUtilities {
+
+    /**
+     * Private constructor to prevent instantiation.
+     */
+    private StackUtilities() {
+    }
+
+    /**
+     * Converts decimal to binary.
+     * 
+     * @param theInteger the integer to be converted.
+     * @return the string representation of the binary equivalent to theInteger
+     */
+    public static String decimalToBinary(final int theInteger) {
+        if (theInteger <= 0) {
+            throw new InputMismatchException();
+        }
+        try {
+            int num = theInteger;
+            final ArrayStack<Integer> stack = new ArrayStack<>();
+            String output = "";
+            while (num > 0) {
+                final int remainder = num % 2;
+                stack.push(remainder);
+                num /= 2;
+            }
+
+            while (!stack.isEmpty()) {
+                output += stack.pop();
+            }
+
+            return output;
+        } catch (final InputMismatchException ex) {
+            return "Input mismatch.";
+        }
+    }
+
+    /**
+     * The main method of this program.
+     * 
+     * @param theArgs command line arguments (ignored).
+     */
+    public static void main(final String[] theArgs) {
+        final Scanner scanner = new Scanner(System.in);
+        int input = -1;
+
+        while (input <= 0) {
+            try {
+                System.out.print("Please enter a positive integer: ");
+                input = scanner.nextInt();
+            } catch (final InputMismatchException ex) {
+                scanner.next();
+            }
+        }
+        
+        System.out.println("The binary representation is: " + decimalToBinary(input));
+        scanner.close();
+    }
+    
+}
